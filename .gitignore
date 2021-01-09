@@ -1,0 +1,5 @@
+*.jar
+# folders
+model
+test_out
+test_data
