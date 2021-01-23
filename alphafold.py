@@ -19,7 +19,7 @@ def run_eval(target_path, model_path, replica, out_dir, device):
     else:
         cost_time = utils.load_tf_ckpt(model, model_file)
         model.to(device)
-        print(f'Load tf model cost time: {cost_time}')
+    print("Load model cost time: " + str(cost_time))
 
     num_examples = 0
     num_crops = 0

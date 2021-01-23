@@ -146,6 +146,7 @@ def feature_generation(seq_file, out_file):
     dataset = []
 
     for domain in utils.generate_domains(target, target_seq):
+        print("start domain " + str(domain))
         name = domain['name']
         crop_start, crop_end = domain["description"]
         seq = target_seq[crop_start-1:crop_end]
@@ -155,6 +156,7 @@ def feature_generation(seq_file, out_file):
         aln_file = data_dir / f'{name}.aln'
         mat_file = data_dir / f'{name}.mat'
 
+        print("1")
         if aln_file.exists():
             aln, _ = read_aln(aln_file)
         else:
@@ -162,7 +164,7 @@ def feature_generation(seq_file, out_file):
             aln = aln[:, aln[0] != '-']
             write_aln(aln, aln_id, aln_file)
             exit()
-
+        print("2")
         if mat_file.exists():
             mat = sio.loadmat(mat_file)
             pseudo_bias = np.float32(mat['pseudo_bias'])
@@ -172,10 +174,11 @@ def feature_generation(seq_file, out_file):
             pseudo_bias = np.zeros((L, 22), dtype=np.float32)
             pseudo_frob = np.zeros((L, L, 1), dtype=np.float32)
             pseudolikelihood = np.zeros((L, L, 484), dtype=np.float32)
-
+        print("3")
         gap_count = np.float32(aln=='-')
         gap_matrix = np.expand_dims(np.matmul(gap_count.T, gap_count) / aln.shape[0], -1)
-
+        
+        print("map1")
         mapping = {aa: i for i, aa in enumerate('ARNDCQEGHILKMFPSTWYVX-')}
         seq_weight = sequence_weights(aln)
         hhblits_profile = np.zeros((L, 22), dtype=np.float32)
@@ -186,20 +189,22 @@ def feature_generation(seq_file, out_file):
                 reweighted_profile[i, mapping[aln[j, i]]] += seq_weight[j]
         hhblits_profile /= hhblits_profile.sum(-1).reshape(-1, 1)
         reweighted_profile /= reweighted_profile.sum(-1).reshape(-1, 1)
-
+        print("map2")
         mapping = {aa: i for i, aa in enumerate('ARNDCQEGHILKMFPSTWYV-')}
         non_gapped_profile = np.zeros((L, 21), dtype=np.float32)
         for i in range(L):
             for j in aln[:, i]:
+                if j == 'X':
+                    continue
                 non_gapped_profile[i, mapping[j]] += 1
         non_gapped_profile[:, -1] = 0
         non_gapped_profile /= non_gapped_profile.sum(-1).reshape(-1, 1)
-
+        print("map3")
         mapping = {aa: i for i, aa in enumerate('-ARNDCQEGHILKMFPSTWYVX')}
         a2n = np.frompyfunc(lambda x: mapping[x], 1, 1)
         fi, fij, Meff = calculate_f(a2n(aln))
         MI = calculate_MI(fi, fij)
-
+        print("start to gen data " + str(domain))
         data = {
             'chain_name': target,
             'domain_name': name,
@@ -244,7 +249,7 @@ def feature_generation(seq_file, out_file):
             'profile_with_prior_without_gaps': np.zeros((L, 21), dtype=np.float32)
         }
         dataset.append(data)
-    
+    print("save data to " + str(out_file)) 
     np.save(out_file, dataset, allow_pickle=True)
 
 if __name__ == '__main__':
